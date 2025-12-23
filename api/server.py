@@ -1,46 +1,74 @@
-from fastapi import FastAPI, Query
-from datetime import datetime, timezone
+from fastapi import FastAPI
+from pydantic import BaseModel
+from datetime import datetime
 import uuid
 
-from engine.scoring import compute_intent_score
-from engine.explain import explain_intent
-
 api = FastAPI()
-INTENTS = {}
 
+# -----------------------
+# In-memory intent store
+# -----------------------
+INTENTS = []
+
+# -----------------------
+# Models
+# -----------------------
+class InjectIntentRequest(BaseModel):
+    topic: str
+    confidence: float | None = None
+    momentum: str | None = None
+    authenticity: dict | None = None
+    streak_days: int | None = None
+
+
+class VerifyIntentRequest(BaseModel):
+    topic: str
+
+
+# -----------------------
+# Health
+# -----------------------
 @api.get("/health")
 def health():
     return {"status": "ok"}
 
+
+# -----------------------
+# Inject Intent
+# -----------------------
 @api.post("/inject-intent")
-def inject_intent(payload: dict):
-    intent_id = str(uuid.uuid4())
-    payload["id"] = intent_id
-    payload["created_at"] = datetime.now(timezone.utc)
-    INTENTS[intent_id] = payload
-    return {"id": intent_id}
+def inject_intent(req: InjectIntentRequest):
+    intent = {
+        "id": str(uuid.uuid4()),
+        "topic": req.topic,
+        "confidence": req.confidence or 0.0,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    INTENTS.append(intent)
+    return {"id": intent["id"]}
 
-@api.get("/ranked/intents")
-def ranked_intents():
-    ranked = []
-    for intent in INTENTS.values():
-        score = compute_intent_score(intent)
-        ranked.append({**intent, "intent_score": score})
 
-    ranked.sort(key=lambda x: x["intent_score"], reverse=True)
-    return ranked
+# -----------------------
+# VERIFY INTENT (PRODUCT)
+# -----------------------
+@api.post("/verify-intent")
+def verify_intent(req: VerifyIntentRequest):
+    if not INTENTS:
+        return {
+            "allowed": False,
+            "reason": "No active intent signals"
+        }
 
-@api.get("/why-this")
-def why_this(intent_id: str = Query(...)):
-    intent = INTENTS.get(intent_id)
-    if not intent:
-        return {"error": "intent not found"}
+    last = INTENTS[-1]
 
-    score = compute_intent_score(intent)
-    explanation = explain_intent(intent, score)
+    if last["topic"].lower() == req.topic.lower():
+        return {
+            "allowed": True,
+            "intent_score": last.get("confidence", 0),
+            "reason": "Live human intent detected"
+        }
 
     return {
-        "intent_id": intent_id,
-        "intent_score": score,
-        "explanation": explanation
+        "allowed": False,
+        "reason": "Intent not strong enough"
     }
