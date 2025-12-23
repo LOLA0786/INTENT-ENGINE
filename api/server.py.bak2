@@ -1,0 +1,182 @@
+from fastapi import FastAPI, Query
+from datetime import datetime, timezone
+import uuid
+
+
+api = FastAPI()
+INTENTS = {}
+
+@api.get("/health")
+def health():
+    return {"status": "ok"}
+
+@api.post("/inject-intent")
+def inject_intent(payload: dict):
+    intent_id = str(uuid.uuid4())
+    payload["id"] = intent_id
+    payload["created_at"] = datetime.now(timezone.utc)
+    INTENTS[intent_id] = payload
+    return {"id": intent_id}
+
+@api.get("/ranked/intents")
+def ranked_intents():
+    ranked = []
+    for intent in INTENTS.values():
+        score = compute_intent_score(intent)
+        ranked.append({**intent, "intent_score": score})
+
+    ranked.sort(key=lambda x: x["intent_score"], reverse=True)
+    return ranked
+
+@api.get("/why-this")
+def why_this(intent_id: str = Query(...)):
+    intent = INTENTS.get(intent_id)
+    if not intent:
+        return {"error": "intent not found"}
+
+    score = compute_intent_score(intent)
+    explanation = explain_intent(intent, score)
+
+    return {
+        "intent_id": intent_id,
+        "intent_score": score,
+        "explanation": explanation
+    }
+from pydantic import BaseModel
+
+class VerifyIntentRequest(BaseModel):
+    topic: str
+    action: str | None = None
+
+
+
+    if not ranked or len(ranked) == 0:
+        return {
+            "allowed": False,
+            "reason": "No active intent signals"
+        }
+
+    top = ranked[0]
+
+    topic = top.get("topic")
+    score = top.get("intent_score")
+
+    if not topic or score is None:
+        return {
+            "allowed": False,
+            "reason": "Malformed intent data"
+        }
+
+    if topic.lower() == req.topic.lower():
+        return {
+            "allowed": True,
+            "intent_score": score,
+            "reason": "High live human intent"
+        }
+
+    return {
+        "allowed": False,
+        "reason": "Intent not strong enough"
+    }
+
+# ---- END Intent Engine SELLING ENDPOINT ----
+
+# ---- Intent Engine imports (FIX) ----
+# ---- END imports ----
+
+
+# ---- Intent Engine SELLING ENDPOINT (FINAL) ----
+from pydantic import BaseModel
+
+class VerifyIntentRequest(BaseModel):
+    topic: str
+    action: str | None = None
+
+
+
+            "allowed": False,
+            "reason": "Intent engine unavailable",
+            "debug": str(e)
+        }
+
+    try:
+        if not ranked:
+            return {
+                "allowed": False,
+                "reason": "No active intent signals"
+            }
+
+        top = ranked[0]
+        topic = top.get("topic", "")
+        score = top.get("intent_score", 0)
+
+        if topic.lower() == req.topic.lower():
+            return {
+                "allowed": True,
+                "intent_score": score,
+                "reason": "High live human intent"
+            }
+
+        return {
+            "allowed": False,
+            "reason": "Intent not strong enough"
+        }
+
+    except Exception as e:
+        return {
+            "allowed": False,
+            "reason": "Malformed intent data",
+            "debug": str(e)
+        }
+
+# ---- END Intent Engine SELLING ENDPOINT ----
+
+# ---- Intent Engine SELLING ENDPOINT (PHASE 1 SAFE) ----
+from pydantic import BaseModel
+
+class VerifyIntentRequest(BaseModel):
+    topic: str
+    action: str | None = None
+
+
+
+# ===============================
+# Intent Engine VERIFY API (FINAL)
+# ===============================
+from pydantic import BaseModel
+
+class VerifyIntentRequest(BaseModel):
+    topic: str
+
+
+@api.post("/verify-intent")
+def verify_intent(req: VerifyIntentRequest):
+    # Read in-memory intent store safely
+    intents = []
+
+    if "INTENTS" in globals():
+        intents = globals()["INTENTS"]
+
+    if not intents:
+        return {
+            "allowed": False,
+            "reason": "No active intent signals"
+        }
+
+    last = intents[-1]
+
+    if last.get("topic", "").lower() == req.topic.lower():
+        return {
+            "allowed": True,
+            "intent_score": last.get("confidence", 0),
+            "reason": "Live human intent detected"
+        }
+
+    return {
+        "allowed": False,
+        "reason": "Intent not strong enough"
+    }
+
+# ===============================
+# END VERIFY API
+# ===============================
