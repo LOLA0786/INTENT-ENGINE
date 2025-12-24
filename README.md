@@ -170,6 +170,14 @@ produces explainable scores
 📌 License
 
 MIT © LOLA0786
+## Architecture Guarantees
+
+- Intent decision is deterministic
+- Authorization is rule-based
+- PPO optimizes execution only
+- Hard guardrails prevent unsafe actions
+- PPO runs in shadow mode before activation
+- All decisions are logged and replayable
 
 
 ---
@@ -208,6 +216,8 @@ v0.2.0 — explainability refinements
 Prepare for publishing:
 
 python3 setup.py sdist bdist_wheel
+
+
 
 
 Then:
